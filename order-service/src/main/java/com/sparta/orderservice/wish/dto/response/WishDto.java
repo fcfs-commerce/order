@@ -1,0 +1,16 @@
+package com.sparta.orderservice.wish.dto.response;
+
+import lombok.Getter;
+
+@Getter
+public class WishDto {
+
+  private Long wishId;
+  private Long productId;
+  private String name;
+  private String thumbnailImage;
+  private int price;
+  private int quantity;
+  private String productOptionName;
+
+}
