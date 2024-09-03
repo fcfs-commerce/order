@@ -3,11 +3,13 @@ package com.sparta.orderservice.order.service;
 import com.sparta.orderservice.global.dto.ApiResponse;
 import com.sparta.orderservice.global.exception.CustomException;
 import com.sparta.orderservice.global.exception.ExceptionCode;
+import com.sparta.orderservice.global.feign.ProductFeignClient;
 import com.sparta.orderservice.global.security.service.EncryptService;
 import com.sparta.orderservice.global.util.ApiResponseUtil;
 import com.sparta.orderservice.order.dto.request.OrderCreateRequestDto;
 import com.sparta.orderservice.order.dto.request.OrderItemCreateRequestDto;
 import com.sparta.orderservice.order.dto.response.DecryptedDeliveryInfo;
+import com.sparta.orderservice.order.dto.response.OptionItemDto;
 import com.sparta.orderservice.order.dto.response.OrderInfoDto;
 import com.sparta.orderservice.order.entity.Delivery;
 import com.sparta.orderservice.order.entity.Order;
@@ -33,7 +35,9 @@ public class OrderServiceImpl implements OrderService {
   private final OrderItemRepository orderItemRepository;
   private final DeliveryRepository deliveryRepository;
   private final EncryptService encryptService;
+
   private final UserFeignClient userFeignClient;
+  private final ProductFeignClient productFeignClient;
 
   private final static int RETURN_PERIOD = 1;
 
@@ -49,14 +53,15 @@ public class OrderServiceImpl implements OrderService {
     List<OrderItemCreateRequestDto> orderItemCreateRequestDtoList = requestDto.getOrderItems();
     for (OrderItemCreateRequestDto orderItemCreateRequestDto : orderItemCreateRequestDtoList) {
       // 주문 가능한 상품인지 판별
-      Long optionItemId = findOptionItem(orderItemCreateRequestDto.getProductId(),
+      OptionItemDto optionItemDto = findOptionItem(orderItemCreateRequestDto.getProductId(),
           orderItemCreateRequestDto.getProductOptionId());
+      Long optionItemId = optionItemDto.getOptionItemId();
 
       // 재고 차감
       int quantity = orderItemCreateRequestDto.getQuantity();
       deductOptionItemStock(optionItemId, quantity);
 
-      double price = calculatePrice(optionItemId);
+      double price = optionItemDto.getPrice();
 
       OrderItem orderItem = OrderItem.of(order, optionItemId, quantity, price);
       orderItems.add(orderItem);
@@ -226,12 +231,6 @@ public class OrderServiceImpl implements OrderService {
     return Delivery.of(order, name, phoneNumber, zipCode, address, message);
   }
 
-  private double calculatePrice(Long optionItemId) {
-//    TODO : 상품 가격 조회 (product service 통신)
-//    return optionItem.getProduct().getPrice();
-    return 0;
-  }
-
   private void deductOptionItemStock(Long optionItem, int quantity) {
 //    TODO : 재고 차감 (product service 통신)
 //    optionItem.deductStock(quantity);
@@ -240,13 +239,18 @@ public class OrderServiceImpl implements OrderService {
 //    }
   }
 
-  private Long findOptionItem(Long productId, Long productOptionId) {
-//    TODO : optionItemId 조회 (product service 통신)
-    Long optionItemId = null;
-    if (optionItemId == null) {
+  private OptionItemDto findOptionItem(Long productId, Long productOptionId) {
+    OptionItemDto optionItem = null;
+    if (productOptionId == null) {
+      optionItem = productFeignClient.findOptionItemIdByProductId(productId);
+    } else {
+      optionItem = productFeignClient.findOptionItemIdByProductIdAndProductOptionId(productId, productOptionId);
+    }
+
+    if (optionItem == null) {
       CustomException.from(ExceptionCode.OPTION_ITEM_NOT_FOUND);
     }
-    return optionItemId;
+    return optionItem;
   }
 
   private String findUserName(Long userId) {
