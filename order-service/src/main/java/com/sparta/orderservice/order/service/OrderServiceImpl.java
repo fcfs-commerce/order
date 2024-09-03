@@ -59,7 +59,10 @@ public class OrderServiceImpl implements OrderService {
 
       // 재고 차감
       int quantity = orderItemCreateRequestDto.getQuantity();
-      deductOptionItemStock(optionItemId, quantity);
+      if (optionItemDto.getStock() - quantity < 0) {
+        throw CustomException.from(ExceptionCode.OUT_OF_STOCK);
+      }
+      updateOptionItemStock(optionItemDto.getOptionItemId(), (-1) * quantity);
 
       double price = optionItemDto.getPrice();
 
@@ -135,9 +138,8 @@ public class OrderServiceImpl implements OrderService {
     // 상품 재고 복구
     List<OrderItem> orderItems = findOrderItemList(orderId);
     for (OrderItem orderItem : orderItems) {
-//      TODO : 상품 재고 복구 (product service 통신)
-//      OptionItem optionItem = orderItem.getOptionItem();
-//      optionItem.addStock(orderItem.getQuantity());
+      // 재고 복구
+      updateOptionItemStock(orderItem.getOptionItemId(), orderItem.getQuantity());
     }
 
     return ApiResponseUtil.createSuccessResponse("Canceled the order successfully.", null);
@@ -182,9 +184,8 @@ public class OrderServiceImpl implements OrderService {
   public void updateOrderStatusReturn(LocalDateTime now) {
     List<OrderItem> returnedOrderItems = orderItemRepository.findReturnedOrderItems(now);
     for (OrderItem orderItem : returnedOrderItems) {
-//      TODO : 상품 재고 복구
-//      OptionItem optionItem = orderItem.getOptionItem();
-//      optionItem.addStock(orderItem.getQuantity());
+      // 재고 복구
+      updateOptionItemStock(orderItem.getOptionItemId(), orderItem.getQuantity());
 
       // 반품 완료 상태 전환
       Order order = orderItem.getOrder();
@@ -231,12 +232,8 @@ public class OrderServiceImpl implements OrderService {
     return Delivery.of(order, name, phoneNumber, zipCode, address, message);
   }
 
-  private void deductOptionItemStock(Long optionItem, int quantity) {
-//    TODO : 재고 차감 (product service 통신)
-//    optionItem.deductStock(quantity);
-//    if (optionItem.getStock() < 0) {
-//      throw CustomException.from(ExceptionCode.OUT_OF_STOCK);
-//    }
+  private void updateOptionItemStock(Long optionItemId, int quantity) {
+    productFeignClient.updateOptionItemStock(optionItemId, quantity);
   }
 
   private OptionItemDto findOptionItem(Long productId, Long productOptionId) {
