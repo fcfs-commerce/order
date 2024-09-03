@@ -1,8 +1,11 @@
 package com.sparta.orderservice.order.controller;
 
 import com.sparta.orderservice.global.dto.ApiResponse;
+import com.sparta.orderservice.global.util.JwtUtil;
 import com.sparta.orderservice.order.dto.request.OrderCreateRequestDto;
 import com.sparta.orderservice.order.service.OrderService;
+import io.jsonwebtoken.Claims;
+import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -26,8 +29,9 @@ public class OrderController {
 //  TODO : jwt 받아서 사용자 정보 추출 (@RequestHeader)
 
   @PostMapping
-  public ResponseEntity<ApiResponse> createOrder(@RequestParam("userId") Long userId,
-      @RequestBody OrderCreateRequestDto requestDto) {
+  public ResponseEntity<ApiResponse> createOrder(@RequestBody OrderCreateRequestDto requestDto,
+      HttpServletRequest request) {
+    Long userId = getUserId(request);
     ApiResponse apiResponse = orderService.createOrder(userId, requestDto);
     return ResponseEntity.status(HttpStatus.OK).body(apiResponse);
   }
@@ -59,4 +63,9 @@ public class OrderController {
     return ResponseEntity.status(HttpStatus.OK).body(apiResponse);
   }
 
+  private Long getUserId(HttpServletRequest request) {
+    String token = JwtUtil.getJwtFromHeader(request);
+    Claims userInfo = JwtUtil.getUserInfoFromToken(token);
+    return Long.parseLong(userInfo.getSubject());
+  }
 }

@@ -12,6 +12,7 @@ import com.sparta.orderservice.order.dto.response.OrderInfoDto;
 import com.sparta.orderservice.order.entity.Delivery;
 import com.sparta.orderservice.order.entity.Order;
 import com.sparta.orderservice.order.entity.OrderItem;
+import com.sparta.orderservice.global.feign.UserFeignClient;
 import com.sparta.orderservice.order.repository.DeliveryRepository;
 import com.sparta.orderservice.order.repository.OrderItemRepository;
 import com.sparta.orderservice.order.repository.OrderRepository;
@@ -32,15 +33,13 @@ public class OrderServiceImpl implements OrderService {
   private final OrderItemRepository orderItemRepository;
   private final DeliveryRepository deliveryRepository;
   private final EncryptService encryptService;
+  private final UserFeignClient userFeignClient;
 
   private final static int RETURN_PERIOD = 1;
 
   @Override
   @Transactional
   public ApiResponse createOrder(Long userId, OrderCreateRequestDto requestDto) {
-
-    // 주문 가능한 회원인지 판별
-    findUser(userId);
 
     // 주문 생성
     Order order = Order.from(userId);
@@ -103,7 +102,7 @@ public class OrderServiceImpl implements OrderService {
     hasPermissionForOrder(userId, orderUserId);
 
 //    TODO : 사용자 이름 조회 (user service 통신)
-    String encodedUsername = "";
+    String encodedUsername = findUserName(userId);
     String userName = encryptService.decrypt(encodedUsername);
 
     OrderInfoDto orderInfo = OrderInfoDto.of(order, userName, orderItems, decryptedDelivery);
@@ -250,11 +249,7 @@ public class OrderServiceImpl implements OrderService {
     return optionItemId;
   }
 
-  private void findUser(Long userId) {
-//    TODO : 사용자 회원 검증 (user service 통신)
-    boolean isExist = true;
-    if (!isExist) {
-      CustomException.from(ExceptionCode.USER_NOT_FOUND);
-    }
+  private String findUserName(Long userId) {
+    return userFeignClient.findUserName(userId);
   }
 }

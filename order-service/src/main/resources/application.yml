@@ -15,6 +15,10 @@ spring:
   application:
     name: order-service
 ---
+jwt:
+  secret:
+    key: ${JWT_SECRET_KEY}
+---
 encryptor:
   password: ${SYMMETRIC_KEY}
 ---
