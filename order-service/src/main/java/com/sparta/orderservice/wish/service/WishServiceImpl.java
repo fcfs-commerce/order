@@ -109,7 +109,7 @@ public class WishServiceImpl implements WishService {
     }
 
     if (optionItem == null) {
-      CustomException.from(ExceptionCode.OPTION_ITEM_NOT_FOUND);
+      throw CustomException.from(ExceptionCode.OPTION_ITEM_NOT_FOUND);
     }
     return optionItem.getOptionItemId();
   }

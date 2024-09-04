@@ -83,9 +83,6 @@ public class OrderServiceImpl implements OrderService {
     orderItemRepository.saveAll(orderItems);
     deliveryRepository.save(delivery);
 
-    // 배송 복호화
-    DecryptedDeliveryInfo decryptedDelivery = decodeDelivery(delivery);
-
     return ApiResponseUtil.createSuccessResponse("Created the order successfully.", null);
   }
 
@@ -102,9 +99,6 @@ public class OrderServiceImpl implements OrderService {
     Order order = findOrder(orderId);
 
     // 주문 상품 조회
-//    List<OrderItem> orderItems = findOrderItemList(orderId);
-
-//   TODO : 주문 상품 추가 정보 조회
     List<OrderItemInfoInterface> orderItems = findOrderItemInfoList(orderId);
 
     // 배송 정보 조회
@@ -114,7 +108,6 @@ public class OrderServiceImpl implements OrderService {
     Long orderUserId = order.getUserId();
     hasPermissionForOrder(userId, orderUserId);
 
-//    TODO : 사용자 이름 조회 (user service 통신)
     String encodedUsername = findUserName(userId);
     String userName = encryptService.decrypt(encodedUsername);
 
@@ -254,7 +247,7 @@ private List<OrderItem> findOrderItemList(Long orderId) {
     }
 
     if (optionItem == null) {
-      CustomException.from(ExceptionCode.OPTION_ITEM_NOT_FOUND);
+      throw CustomException.from(ExceptionCode.OPTION_ITEM_NOT_FOUND);
     }
     return optionItem;
   }
