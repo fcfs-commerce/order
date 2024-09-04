@@ -9,7 +9,7 @@ import com.sparta.orderservice.order.dto.response.OptionItemDto;
 import com.sparta.orderservice.wish.dto.request.WishCreateRequestDto;
 import com.sparta.orderservice.wish.dto.request.WishUpdateProductOptionRequestDto;
 import com.sparta.orderservice.wish.dto.request.WishUpdateQuantityRequestDto;
-import com.sparta.orderservice.wish.dto.response.WishDto;
+import com.sparta.orderservice.wish.dto.response.WishInterface;
 import com.sparta.orderservice.wish.entity.Wish;
 import com.sparta.orderservice.wish.repository.WishRepository;
 import lombok.RequiredArgsConstructor;
@@ -48,7 +48,7 @@ public class WishServiceImpl implements WishService {
   @Override
   public ApiResponse getWishList(Long userId, int page, int size) {
     Pageable pageable = PageRequest.of(page, size);
-    Page<WishDto> wishList = findWishList(userId, pageable);
+    Page<WishInterface> wishList = findWishList(userId, pageable);
     return ApiResponseUtil.createSuccessResponse("Wishlist loaded successfully.", wishList);
   }
 
@@ -96,10 +96,8 @@ public class WishServiceImpl implements WishService {
         .orElseThrow(() -> CustomException.from(ExceptionCode.WISH_NOT_FOUND));
   }
 
-  private Page<WishDto> findWishList(Long userId, Pageable pageable) {
-//      TODO : 주문 내역 목록 조회 (product service 통신)
-//    return wishRepository.findWishList(userId, pageable);
-    return null;
+  private Page<WishInterface> findWishList(Long userId, Pageable pageable) {
+    return wishRepository.findWishList(userId, pageable);
   }
 
   private Long findOptionItemId(Long productId, Long productOptionId) {
