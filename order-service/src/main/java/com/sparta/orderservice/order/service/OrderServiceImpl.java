@@ -11,6 +11,7 @@ import com.sparta.orderservice.order.dto.request.OrderItemCreateRequestDto;
 import com.sparta.orderservice.order.dto.response.DecryptedDeliveryInfo;
 import com.sparta.orderservice.order.dto.response.OptionItemDto;
 import com.sparta.orderservice.order.dto.response.OrderInfoDto;
+import com.sparta.orderservice.order.dto.response.OrderItemInfoInterface;
 import com.sparta.orderservice.order.dto.response.OrderSummaryInterface;
 import com.sparta.orderservice.order.entity.Delivery;
 import com.sparta.orderservice.order.entity.Order;
@@ -101,9 +102,10 @@ public class OrderServiceImpl implements OrderService {
     Order order = findOrder(orderId);
 
     // 주문 상품 조회
-    List<OrderItem> orderItems = findOrderItemList(orderId);
+//    List<OrderItem> orderItems = findOrderItemList(orderId);
 
 //   TODO : 주문 상품 추가 정보 조회
+    List<OrderItemInfoInterface> orderItems = findOrderItemInfoList(orderId);
 
     // 배송 정보 조회
     DecryptedDeliveryInfo decryptedDelivery = findDelivery(orderId);
@@ -213,8 +215,12 @@ public class OrderServiceImpl implements OrderService {
         .orElseThrow(() -> CustomException.from(ExceptionCode.ORDER_NOT_FOUND));
   }
 
-  private List<OrderItem> findOrderItemList(Long orderId) {
+private List<OrderItem> findOrderItemList(Long orderId) {
     return orderItemRepository.findAllByOrderId(orderId);
+}
+
+  private List<OrderItemInfoInterface> findOrderItemInfoList(Long orderId) {
+    return orderItemRepository.findOrderItems(orderId);
   }
 
   private DecryptedDeliveryInfo decodeDelivery(Delivery delivery) {

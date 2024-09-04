@@ -37,27 +37,31 @@ public class OrderController {
   }
 
   @GetMapping
-  public ResponseEntity<ApiResponse> getOrders(@PathVariable Long userId,
+  public ResponseEntity<ApiResponse> getOrders(HttpServletRequest request,
                                                          @RequestParam("page")int page,
                                                          @RequestParam("size")int size) {
+    Long userId = getUserId(request);
     ApiResponse apiResponse = orderService.getOrders(userId, page-1, size);
     return ResponseEntity.status(HttpStatus.OK).body(apiResponse);
   }
 
   @GetMapping("/{orderId}")
-  public ResponseEntity<ApiResponse> getOrder(@PathVariable Long orderId, @RequestParam("userId") Long userId) {
+  public ResponseEntity<ApiResponse> getOrder(@PathVariable Long orderId, HttpServletRequest request) {
+    Long userId = getUserId(request);
     ApiResponse apiResponse = orderService.getOrder(orderId, userId);
     return ResponseEntity.status(HttpStatus.OK).body(apiResponse);
   }
 
   @PutMapping("/{orderId}/cancel")
-  public ResponseEntity<ApiResponse> cancelOrder(@PathVariable Long orderId, @RequestParam("userId") Long userId) {
+  public ResponseEntity<ApiResponse> cancelOrder(@PathVariable Long orderId, HttpServletRequest request) {
+    Long userId = getUserId(request);
     ApiResponse apiResponse = orderService.cancelOrder(orderId, userId);
     return ResponseEntity.status(HttpStatus.OK).body(apiResponse);
   }
 
   @PutMapping("/{orderId}/return")
-  public ResponseEntity<ApiResponse> returnProduct(@PathVariable Long orderId, @RequestParam("userId") Long userId) {
+  public ResponseEntity<ApiResponse> returnProduct(@PathVariable Long orderId, HttpServletRequest request) {
+    Long userId = getUserId(request);
     LocalDateTime now = LocalDateTime.now();
     ApiResponse apiResponse = orderService.returnProduct(orderId, userId, now);
     return ResponseEntity.status(HttpStatus.OK).body(apiResponse);

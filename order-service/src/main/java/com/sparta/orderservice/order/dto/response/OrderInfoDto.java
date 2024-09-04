@@ -19,17 +19,18 @@ public class OrderInfoDto {
   private String name;
   private LocalDateTime orderDateTime;
   private OrderStatus status;
-  private List<OrderItemInfoDto> orderItems;
+//  private List<OrderItemInfoDto> orderItems;
+  private List<OrderItemInfoInterface> orderItems;
   private DeliveryInfoDto delivery;
 
-  public static OrderInfoDto of(Order order, String userName, List<OrderItem> orderItems,
+  public static OrderInfoDto of(Order order, String userName, List<OrderItemInfoInterface> orderItems,
       DecryptedDeliveryInfo decryptedDelivery) {
 
-    List<OrderItemInfoDto> orderItemInfoDtoList = new ArrayList<>();
-    for (OrderItem orderItem : orderItems) {
-      OrderItemInfoDto orderItemInfoDto = OrderItemInfoDto.from(orderItem);
-      orderItemInfoDtoList.add(orderItemInfoDto);
-    }
+//    List<OrderItemInfoDto> orderItemInfoDtoList = new ArrayList<>();
+//    for (OrderItem orderItem : orderItems) {
+//      OrderItemInfoDto orderItemInfoDto = OrderItemInfoDto.from(orderItem);
+//      orderItemInfoDtoList.add(orderItemInfoDto);
+//    }
 
     DeliveryInfoDto deliveryInfoDto = DeliveryInfoDto.from(decryptedDelivery);
 
@@ -38,7 +39,7 @@ public class OrderInfoDto {
         .name(userName)
         .orderDateTime(order.getCreatedDateTime())
         .status(order.getStatus())
-        .orderItems(orderItemInfoDtoList)
+        .orderItems(orderItems)
         .delivery(deliveryInfoDto)
         .build();
   }

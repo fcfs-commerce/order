@@ -19,4 +19,5 @@ public interface ProductFeignClient {
 
   @PutMapping("/api/internal/v1/products/optionItems/{optionItemId}")
   void updateOptionItemStock(@PathVariable Long optionItemId, @RequestParam int stock);
+
 }
