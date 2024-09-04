@@ -3,15 +3,20 @@ package com.sparta.orderservice.order.service;
 import com.sparta.orderservice.global.dto.ApiResponse;
 import com.sparta.orderservice.global.exception.CustomException;
 import com.sparta.orderservice.global.exception.ExceptionCode;
+import com.sparta.orderservice.global.feign.ProductFeignClient;
 import com.sparta.orderservice.global.security.service.EncryptService;
 import com.sparta.orderservice.global.util.ApiResponseUtil;
 import com.sparta.orderservice.order.dto.request.OrderCreateRequestDto;
 import com.sparta.orderservice.order.dto.request.OrderItemCreateRequestDto;
 import com.sparta.orderservice.order.dto.response.DecryptedDeliveryInfo;
+import com.sparta.orderservice.order.dto.response.OptionItemDto;
 import com.sparta.orderservice.order.dto.response.OrderInfoDto;
+import com.sparta.orderservice.order.dto.response.OrderItemInfoInterface;
+import com.sparta.orderservice.order.dto.response.OrderSummaryInterface;
 import com.sparta.orderservice.order.entity.Delivery;
 import com.sparta.orderservice.order.entity.Order;
 import com.sparta.orderservice.order.entity.OrderItem;
+import com.sparta.orderservice.global.feign.UserFeignClient;
 import com.sparta.orderservice.order.repository.DeliveryRepository;
 import com.sparta.orderservice.order.repository.OrderItemRepository;
 import com.sparta.orderservice.order.repository.OrderRepository;
@@ -21,6 +26,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,14 +41,14 @@ public class OrderServiceImpl implements OrderService {
   private final DeliveryRepository deliveryRepository;
   private final EncryptService encryptService;
 
+  private final UserFeignClient userFeignClient;
+  private final ProductFeignClient productFeignClient;
+
   private final static int RETURN_PERIOD = 1;
 
   @Override
   @Transactional
   public ApiResponse createOrder(Long userId, OrderCreateRequestDto requestDto) {
-
-    // 주문 가능한 회원인지 판별
-    findUser(userId);
 
     // 주문 생성
     Order order = Order.from(userId);
@@ -50,14 +58,18 @@ public class OrderServiceImpl implements OrderService {
     List<OrderItemCreateRequestDto> orderItemCreateRequestDtoList = requestDto.getOrderItems();
     for (OrderItemCreateRequestDto orderItemCreateRequestDto : orderItemCreateRequestDtoList) {
       // 주문 가능한 상품인지 판별
-      Long optionItemId = findOptionItem(orderItemCreateRequestDto.getProductId(),
+      OptionItemDto optionItemDto = findOptionItem(orderItemCreateRequestDto.getProductId(),
           orderItemCreateRequestDto.getProductOptionId());
+      Long optionItemId = optionItemDto.getOptionItemId();
 
       // 재고 차감
       int quantity = orderItemCreateRequestDto.getQuantity();
-      deductOptionItemStock(optionItemId, quantity);
+      if (optionItemDto.getStock() - quantity < 0) {
+        throw CustomException.from(ExceptionCode.OUT_OF_STOCK);
+      }
+      updateOptionItemStock(optionItemDto.getOptionItemId(), (-1) * quantity);
 
-      double price = calculatePrice(optionItemId);
+      double price = optionItemDto.getPrice();
 
       OrderItem orderItem = OrderItem.of(order, optionItemId, quantity, price);
       orderItems.add(orderItem);
@@ -71,18 +83,14 @@ public class OrderServiceImpl implements OrderService {
     orderItemRepository.saveAll(orderItems);
     deliveryRepository.save(delivery);
 
-    // 배송 복호화
-    DecryptedDeliveryInfo decryptedDelivery = decodeDelivery(delivery);
-
     return ApiResponseUtil.createSuccessResponse("Created the order successfully.", null);
   }
 
   @Override
   public ApiResponse getOrders(Long userId, int page, int size) {
-//    TODO : 주문 내역 목록 조회 (product service 통신)
-//    Pageable pageable = PageRequest.of(page, size);
-//    return orderRepository.getOrders(userId, pageable);
-    return null;
+    Pageable pageable = PageRequest.of(page, size);
+    Page<OrderSummaryInterface> orders = orderRepository.getOrders(userId, pageable);
+    return ApiResponseUtil.createSuccessResponse("Orders loaded successfully.", orders);
   }
 
   @Override
@@ -91,9 +99,7 @@ public class OrderServiceImpl implements OrderService {
     Order order = findOrder(orderId);
 
     // 주문 상품 조회
-    List<OrderItem> orderItems = findOrderItemList(orderId);
-
-//   TODO : 주문 상품 추가 정보 조회
+    List<OrderItemInfoInterface> orderItems = findOrderItemInfoList(orderId);
 
     // 배송 정보 조회
     DecryptedDeliveryInfo decryptedDelivery = findDelivery(orderId);
@@ -102,8 +108,7 @@ public class OrderServiceImpl implements OrderService {
     Long orderUserId = order.getUserId();
     hasPermissionForOrder(userId, orderUserId);
 
-//    TODO : 사용자 이름 조회 (user service 통신)
-    String encodedUsername = "";
+    String encodedUsername = findUserName(userId);
     String userName = encryptService.decrypt(encodedUsername);
 
     OrderInfoDto orderInfo = OrderInfoDto.of(order, userName, orderItems, decryptedDelivery);
@@ -131,9 +136,8 @@ public class OrderServiceImpl implements OrderService {
     // 상품 재고 복구
     List<OrderItem> orderItems = findOrderItemList(orderId);
     for (OrderItem orderItem : orderItems) {
-//      TODO : 상품 재고 복구 (product service 통신)
-//      OptionItem optionItem = orderItem.getOptionItem();
-//      optionItem.addStock(orderItem.getQuantity());
+      // 재고 복구
+      updateOptionItemStock(orderItem.getOptionItemId(), orderItem.getQuantity());
     }
 
     return ApiResponseUtil.createSuccessResponse("Canceled the order successfully.", null);
@@ -178,9 +182,8 @@ public class OrderServiceImpl implements OrderService {
   public void updateOrderStatusReturn(LocalDateTime now) {
     List<OrderItem> returnedOrderItems = orderItemRepository.findReturnedOrderItems(now);
     for (OrderItem orderItem : returnedOrderItems) {
-//      TODO : 상품 재고 복구
-//      OptionItem optionItem = orderItem.getOptionItem();
-//      optionItem.addStock(orderItem.getQuantity());
+      // 재고 복구
+      updateOptionItemStock(orderItem.getOptionItemId(), orderItem.getQuantity());
 
       // 반품 완료 상태 전환
       Order order = orderItem.getOrder();
@@ -205,8 +208,12 @@ public class OrderServiceImpl implements OrderService {
         .orElseThrow(() -> CustomException.from(ExceptionCode.ORDER_NOT_FOUND));
   }
 
-  private List<OrderItem> findOrderItemList(Long orderId) {
+private List<OrderItem> findOrderItemList(Long orderId) {
     return orderItemRepository.findAllByOrderId(orderId);
+}
+
+  private List<OrderItemInfoInterface> findOrderItemInfoList(Long orderId) {
+    return orderItemRepository.findOrderItems(orderId);
   }
 
   private DecryptedDeliveryInfo decodeDelivery(Delivery delivery) {
@@ -227,34 +234,25 @@ public class OrderServiceImpl implements OrderService {
     return Delivery.of(order, name, phoneNumber, zipCode, address, message);
   }
 
-  private double calculatePrice(Long optionItemId) {
-//    TODO : 상품 가격 조회 (product service 통신)
-//    return optionItem.getProduct().getPrice();
-    return 0;
+  private void updateOptionItemStock(Long optionItemId, int quantity) {
+    productFeignClient.updateOptionItemStock(optionItemId, quantity);
   }
 
-  private void deductOptionItemStock(Long optionItem, int quantity) {
-//    TODO : 재고 차감 (product service 통신)
-//    optionItem.deductStock(quantity);
-//    if (optionItem.getStock() < 0) {
-//      throw CustomException.from(ExceptionCode.OUT_OF_STOCK);
-//    }
-  }
-
-  private Long findOptionItem(Long productId, Long productOptionId) {
-//    TODO : optionItemId 조회 (product service 통신)
-    Long optionItemId = null;
-    if (optionItemId == null) {
-      CustomException.from(ExceptionCode.OPTION_ITEM_NOT_FOUND);
+  private OptionItemDto findOptionItem(Long productId, Long productOptionId) {
+    OptionItemDto optionItem;
+    if (productOptionId == null) {
+      optionItem = productFeignClient.findOptionItemIdByProductId(productId);
+    } else {
+      optionItem = productFeignClient.findOptionItemIdByProductIdAndProductOptionId(productId, productOptionId);
     }
-    return optionItemId;
+
+    if (optionItem == null) {
+      throw CustomException.from(ExceptionCode.OPTION_ITEM_NOT_FOUND);
+    }
+    return optionItem;
   }
 
-  private void findUser(Long userId) {
-//    TODO : 사용자 회원 검증 (user service 통신)
-    boolean isExist = true;
-    if (!isExist) {
-      CustomException.from(ExceptionCode.USER_NOT_FOUND);
-    }
+  private String findUserName(Long userId) {
+    return userFeignClient.findUserName(userId);
   }
 }
