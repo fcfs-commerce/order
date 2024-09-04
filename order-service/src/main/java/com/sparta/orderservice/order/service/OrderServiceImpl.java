@@ -11,6 +11,7 @@ import com.sparta.orderservice.order.dto.request.OrderItemCreateRequestDto;
 import com.sparta.orderservice.order.dto.response.DecryptedDeliveryInfo;
 import com.sparta.orderservice.order.dto.response.OptionItemDto;
 import com.sparta.orderservice.order.dto.response.OrderInfoDto;
+import com.sparta.orderservice.order.dto.response.OrderSummaryInterface;
 import com.sparta.orderservice.order.entity.Delivery;
 import com.sparta.orderservice.order.entity.Order;
 import com.sparta.orderservice.order.entity.OrderItem;
@@ -24,6 +25,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -86,10 +90,9 @@ public class OrderServiceImpl implements OrderService {
 
   @Override
   public ApiResponse getOrders(Long userId, int page, int size) {
-//    TODO : 주문 내역 목록 조회 (product service 통신)
-//    Pageable pageable = PageRequest.of(page, size);
-//    return orderRepository.getOrders(userId, pageable);
-    return null;
+    Pageable pageable = PageRequest.of(page, size);
+    Page<OrderSummaryInterface> orders = orderRepository.getOrders(userId, pageable);
+    return ApiResponseUtil.createSuccessResponse("Orders loaded successfully.", orders);
   }
 
   @Override
