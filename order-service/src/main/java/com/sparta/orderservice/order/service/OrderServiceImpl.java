@@ -246,7 +246,7 @@ private List<OrderItem> findOrderItemList(Long orderId) {
   }
 
   private OptionItemDto findOptionItem(Long productId, Long productOptionId) {
-    OptionItemDto optionItem = null;
+    OptionItemDto optionItem;
     if (productOptionId == null) {
       optionItem = productFeignClient.findOptionItemIdByProductId(productId);
     } else {

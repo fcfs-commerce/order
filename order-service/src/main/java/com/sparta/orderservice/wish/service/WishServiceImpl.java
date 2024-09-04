@@ -3,7 +3,9 @@ package com.sparta.orderservice.wish.service;
 import com.sparta.orderservice.global.dto.ApiResponse;
 import com.sparta.orderservice.global.exception.CustomException;
 import com.sparta.orderservice.global.exception.ExceptionCode;
+import com.sparta.orderservice.global.feign.ProductFeignClient;
 import com.sparta.orderservice.global.util.ApiResponseUtil;
+import com.sparta.orderservice.order.dto.response.OptionItemDto;
 import com.sparta.orderservice.wish.dto.request.WishCreateRequestDto;
 import com.sparta.orderservice.wish.dto.request.WishUpdateProductOptionRequestDto;
 import com.sparta.orderservice.wish.dto.request.WishUpdateQuantityRequestDto;
@@ -23,13 +25,12 @@ public class WishServiceImpl implements WishService {
 
   private final WishRepository wishRepository;
 
+  private final ProductFeignClient productFeignClient;
+
   @Override
   public ApiResponse createWish(WishCreateRequestDto requestDto, Long userId) {
-    // 존재하는 회원인지 판별
-    findUser(userId);
-
     // 존재하는 옵션 상품인지 판별
-    Long optionItemId = findOptionItem(requestDto.getProductId(), requestDto.getProductOptionId());
+    Long optionItemId = findOptionItemId(requestDto.getProductId(), requestDto.getProductOptionId());
 
     // 이미 위시리스트에 동일한 옵션 상품을 담았는지 판별
     boolean isExist = isExistsByWishByUserAndOrderItem(userId, optionItemId);
@@ -76,7 +77,7 @@ public class WishServiceImpl implements WishService {
     hasPermissionForWishUpdate(userId, wish.getUserId());
 
     // 존재하는 옵션 상품인지 판별
-    Long optionItemId = findOptionItem(requestDto.getProductId(), requestDto.getProductOptionId());
+    Long optionItemId = findOptionItemId(requestDto.getProductId(), requestDto.getProductOptionId());
 
     // 상품 옵션 변경
     wish.updateOptionItem(optionItemId);
@@ -101,21 +102,18 @@ public class WishServiceImpl implements WishService {
     return null;
   }
 
-  private void findUser(Long userId) {
-//    TODO : 사용자 회원 검증 (user service 통신)
-    boolean isExist = true;
-    if (!isExist) {
-      CustomException.from(ExceptionCode.USER_NOT_FOUND);
+  private Long findOptionItemId(Long productId, Long productOptionId) {
+    OptionItemDto optionItem;
+    if (productOptionId == null) {
+      optionItem = productFeignClient.findOptionItemIdByProductId(productId);
+    } else {
+      optionItem = productFeignClient.findOptionItemIdByProductIdAndProductOptionId(productId, productOptionId);
     }
-  }
 
-  private Long findOptionItem(Long productId, Long productOptionId) {
-//    TODO : optionItemId 조회 (product service 통신)
-    Long optionItemId = null;
-    if (optionItemId == null) {
+    if (optionItem == null) {
       CustomException.from(ExceptionCode.OPTION_ITEM_NOT_FOUND);
     }
-    return optionItemId;
+    return optionItem.getOptionItemId();
   }
 
   private boolean isExistsByWishByUserAndOrderItem(Long userId, Long optionItemId) {
