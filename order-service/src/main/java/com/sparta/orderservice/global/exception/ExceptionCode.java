@@ -8,6 +8,9 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public enum ExceptionCode {
 
+  // 400
+  MISSING_USER_ID(HttpStatus.BAD_REQUEST, "헤더에 사용자 ID 정보가 누락되었습니다."),
+
   // 401
   USER_MISMATCH(HttpStatus.UNAUTHORIZED, "등록자와 요청자가 일치하지 않습니다"),
 
