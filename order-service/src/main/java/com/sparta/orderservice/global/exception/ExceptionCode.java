@@ -32,7 +32,10 @@ public enum ExceptionCode {
 
   // 500
   CREATE_MAIL_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "메일 생성에 실패했습니다."),
-  ALGORITHM_NOT_FOUND(HttpStatus.INTERNAL_SERVER_ERROR, "지정된 알고리즘을 찾을 수 없습니다.");
+  ALGORITHM_NOT_FOUND(HttpStatus.INTERNAL_SERVER_ERROR, "지정된 알고리즘을 찾을 수 없습니다."),
+
+  PRODUCT_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "상품 서비스에 접근이 불가합니다."),
+  USER_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "사용자 서비스에 접근이 불가합니다.");
 
   private final HttpStatus status;
   private final String message;

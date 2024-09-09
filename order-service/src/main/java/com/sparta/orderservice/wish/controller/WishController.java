@@ -36,10 +36,10 @@ public class WishController {
   }
 
   @GetMapping
-  public ResponseEntity<ApiResponse> getWishList(@RequestParam("userId") Long userId,
+  public ResponseEntity<ApiResponse> getWishList(HttpServletRequest request,
                                                    @RequestParam(value = "page")int page,
                                                    @RequestParam(value = "size")int size) {
-
+    Long userId = ParseRequestUtil.extractUserIdFromHeader(request);
     ApiResponse apiResponse = wishService.getWishList(userId, page-1, size);
     return ResponseEntity.status(HttpStatus.OK).body(apiResponse);
   }
