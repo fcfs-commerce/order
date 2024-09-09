@@ -108,8 +108,8 @@ public class WishServiceImpl implements WishService {
       optionItem = productFeignClient.findOptionItemIdByProductIdAndProductOptionId(productId, productOptionId);
     }
 
-    if (optionItem == null) {
-      throw CustomException.from(ExceptionCode.OPTION_ITEM_NOT_FOUND);
+    if (optionItem.getOptionItemId() == null) {
+      throw CustomException.from(ExceptionCode.PRODUCT_SERVICE_UNAVAILABLE);
     }
     return optionItem.getOptionItemId();
   }

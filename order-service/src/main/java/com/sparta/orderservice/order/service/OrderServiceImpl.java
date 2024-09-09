@@ -98,18 +98,19 @@ public class OrderServiceImpl implements OrderService {
     // 주문 조회
     Order order = findOrder(orderId);
 
+    // 조회 요청자가 주문자인지 판별
+    Long orderUserId = order.getUserId();
+    hasPermissionForOrder(userId, orderUserId);
+
+    // 주문자명 조회
+    String encodedUsername = findUserName(userId);
+    String userName = encryptService.decrypt(encodedUsername);
+
     // 주문 상품 조회
     List<OrderItemInfoInterface> orderItems = findOrderItemInfoList(orderId);
 
     // 배송 정보 조회
     DecryptedDeliveryInfo decryptedDelivery = findDelivery(orderId);
-
-    // 조회 요청자가 주문자인지 판별
-    Long orderUserId = order.getUserId();
-    hasPermissionForOrder(userId, orderUserId);
-
-    String encodedUsername = findUserName(userId);
-    String userName = encryptService.decrypt(encodedUsername);
 
     OrderInfoDto orderInfo = OrderInfoDto.of(order, userName, orderItems, decryptedDelivery);
     return ApiResponseUtil.createSuccessResponse("Order loaded successfully.", orderInfo);
@@ -246,8 +247,8 @@ private List<OrderItem> findOrderItemList(Long orderId) {
       optionItem = productFeignClient.findOptionItemIdByProductIdAndProductOptionId(productId, productOptionId);
     }
 
-    if (optionItem == null) {
-      throw CustomException.from(ExceptionCode.OPTION_ITEM_NOT_FOUND);
+    if (optionItem.getOptionItemId() == null) {
+      throw CustomException.from(ExceptionCode.PRODUCT_SERVICE_UNAVAILABLE);
     }
     return optionItem;
   }
