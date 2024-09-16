@@ -6,7 +6,7 @@ import lombok.Getter;
 public class OptionItemDto {
 
   private Long optionItemId;
-  private int stock;
+  private int quantity;
   private int price;
 
 }

@@ -5,8 +5,7 @@ import lombok.Getter;
 @Getter
 public class OrderItemCreateRequestDto {
 
-  private Long productId;
-  private Long productOptionId;
+  private Long optionItemId;
   private int quantity;
 
 }

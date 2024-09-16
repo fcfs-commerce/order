@@ -8,6 +8,7 @@ import com.sparta.orderservice.global.security.service.EncryptService;
 import com.sparta.orderservice.global.util.ApiResponseUtil;
 import com.sparta.orderservice.order.dto.request.OrderCreateRequestDto;
 import com.sparta.orderservice.order.dto.request.OrderItemCreateRequestDto;
+import com.sparta.orderservice.order.dto.request.UpdateItemStockDto;
 import com.sparta.orderservice.order.dto.response.DecryptedDeliveryInfo;
 import com.sparta.orderservice.order.dto.response.OptionItemDto;
 import com.sparta.orderservice.order.dto.response.OrderInfoDto;
@@ -53,26 +54,14 @@ public class OrderServiceImpl implements OrderService {
     // 주문 생성
     Order order = Order.from(userId);
 
+    // 재고 차감
+    List<OptionItemDto> optionItemDtoList = decreaseStock(requestDto.getOrderItems());
+
     // 주문 아이템 생성
     List<OrderItem> orderItems = new ArrayList<>();
-    List<OrderItemCreateRequestDto> orderItemCreateRequestDtoList = requestDto.getOrderItems();
-    for (OrderItemCreateRequestDto orderItemCreateRequestDto : orderItemCreateRequestDtoList) {
-      // 주문 가능한 상품인지 판별
-      OptionItemDto optionItemDto = findOptionItem(orderItemCreateRequestDto.getProductId(),
-          orderItemCreateRequestDto.getProductOptionId());
-      Long optionItemId = optionItemDto.getOptionItemId();
-
-      // 재고 차감
-      int quantity = orderItemCreateRequestDto.getQuantity();
-      if (optionItemDto.getStock() - quantity < 0) {
-        throw CustomException.from(ExceptionCode.OUT_OF_STOCK);
-      }
-      updateOptionItemStock(optionItemDto.getOptionItemId(), (-1) * quantity);
-
-      double price = optionItemDto.getPrice();
-
-      OrderItem orderItem = OrderItem.of(order, optionItemId, quantity, price);
-      orderItems.add(orderItem);
+    for (OptionItemDto optionItemDto : optionItemDtoList) {
+      orderItems.add(OrderItem.of(order, optionItemDto.getOptionItemId(),
+          optionItemDto.getQuantity(), optionItemDto.getPrice()));
     }
 
     // 배송 생성
@@ -127,7 +116,9 @@ public class OrderServiceImpl implements OrderService {
 
     // 주문 상태가 배송 중이 되기 전인지 판별
     OrderStatus orderStatus = order.getStatus();
-    if (!(orderStatus.equals(OrderStatus.PREPARING_PRODUCT) || orderStatus.equals(OrderStatus.PREPARING_DELIVERING))) {
+    if (!(orderStatus.equals(OrderStatus.PENDING_PAYMENT)
+          || orderStatus.equals(OrderStatus.PREPARING_PRODUCT)
+          || orderStatus.equals(OrderStatus.PREPARING_DELIVERING))) {
       throw CustomException.from(ExceptionCode.ALREADY_SHIPPED);
     }
 
@@ -136,10 +127,11 @@ public class OrderServiceImpl implements OrderService {
 
     // 상품 재고 복구
     List<OrderItem> orderItems = findOrderItemList(orderId);
+    List<UpdateItemStockDto> updateItemStockDtoList = new ArrayList<>();
     for (OrderItem orderItem : orderItems) {
-      // 재고 복구
-      updateOptionItemStock(orderItem.getOptionItemId(), orderItem.getQuantity());
+      updateItemStockDtoList.add(UpdateItemStockDto.from(orderItem));
     }
+    increaseStock(updateItemStockDtoList);
 
     return ApiResponseUtil.createSuccessResponse("Canceled the order successfully.", null);
   }
@@ -182,15 +174,28 @@ public class OrderServiceImpl implements OrderService {
   @Transactional
   public void updateOrderStatusReturn(LocalDateTime now) {
     List<OrderItem> returnedOrderItems = orderItemRepository.findReturnedOrderItems(now);
+    List<UpdateItemStockDto> updateItemStockDtoList = new ArrayList<>();
     for (OrderItem orderItem : returnedOrderItems) {
-      // 재고 복구
-      updateOptionItemStock(orderItem.getOptionItemId(), orderItem.getQuantity());
-
       // 반품 완료 상태 전환
       Order order = orderItem.getOrder();
       order.completeReturn();
-    }
 
+      updateItemStockDtoList.add(UpdateItemStockDto.from(orderItem));
+    }
+    // 재고 복구
+    increaseStock(updateItemStockDtoList);
+  }
+
+  private void increaseStock(List<UpdateItemStockDto> updateItemStockDtoList) {
+    productFeignClient.increaseStock(updateItemStockDtoList);
+  }
+
+  private List<OptionItemDto> decreaseStock(List<OrderItemCreateRequestDto> orderItems) {
+    List<OptionItemDto> decreasedOptionItem = productFeignClient.decreaseStock(orderItems);
+    if (decreasedOptionItem.isEmpty()) {
+      throw CustomException.from(ExceptionCode.OUT_OF_STOCK);
+    }
+    return decreasedOptionItem;
   }
 
   private void hasPermissionForOrder(Long userId, Long orderUserId) {
@@ -233,24 +238,6 @@ private List<OrderItem> findOrderItemList(Long orderId) {
     String address = encryptService.encrypt(requestDto.getAddress());
     String message = encryptService.encrypt(requestDto.getMessage());
     return Delivery.of(order, name, phoneNumber, zipCode, address, message);
-  }
-
-  private void updateOptionItemStock(Long optionItemId, int quantity) {
-    productFeignClient.updateOptionItemStock(optionItemId, quantity);
-  }
-
-  private OptionItemDto findOptionItem(Long productId, Long productOptionId) {
-    OptionItemDto optionItem;
-    if (productOptionId == null) {
-      optionItem = productFeignClient.findOptionItemIdByProductId(productId);
-    } else {
-      optionItem = productFeignClient.findOptionItemIdByProductIdAndProductOptionId(productId, productOptionId);
-    }
-
-    if (optionItem.getOptionItemId() == null) {
-      throw CustomException.from(ExceptionCode.PRODUCT_SERVICE_UNAVAILABLE);
-    }
-    return optionItem;
   }
 
   private String findUserName(Long userId) {

@@ -45,7 +45,7 @@ public class Order extends Timestamped {
   public static Order from(Long userId) {
     return Order.builder()
         .userId(userId)
-        .status(OrderStatus.PREPARING_PRODUCT)
+        .status(OrderStatus.PENDING_PAYMENT)
         .build();
   }
 
