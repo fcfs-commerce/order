@@ -5,7 +5,6 @@ import lombok.Getter;
 @Getter
 public class WishUpdateProductOptionRequestDto {
 
-  private Long productId;
-  private Long productOptionId;
+  private Long optionItemId;
 
 }

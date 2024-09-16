@@ -30,7 +30,7 @@ public class WishServiceImpl implements WishService {
   @Override
   public ApiResponse createWish(WishCreateRequestDto requestDto, Long userId) {
     // 존재하는 옵션 상품인지 판별
-    Long optionItemId = findOptionItemId(requestDto.getProductId(), requestDto.getProductOptionId());
+    Long optionItemId = findOptionItemId(requestDto.getOptionItemId());
 
     // 이미 위시리스트에 동일한 옵션 상품을 담았는지 판별
     boolean isExist = isExistsByWishByUserAndOrderItem(userId, optionItemId);
@@ -77,7 +77,7 @@ public class WishServiceImpl implements WishService {
     hasPermissionForWishUpdate(userId, wish.getUserId());
 
     // 존재하는 옵션 상품인지 판별
-    Long optionItemId = findOptionItemId(requestDto.getProductId(), requestDto.getProductOptionId());
+    Long optionItemId = findOptionItemId(requestDto.getOptionItemId());
 
     // 상품 옵션 변경
     wish.updateOptionItem(optionItemId);
@@ -100,13 +100,8 @@ public class WishServiceImpl implements WishService {
     return wishRepository.findWishList(userId, pageable);
   }
 
-  private Long findOptionItemId(Long productId, Long productOptionId) {
-    OptionItemDto optionItem;
-    if (productOptionId == null) {
-      optionItem = productFeignClient.findOptionItemIdByProductId(productId);
-    } else {
-      optionItem = productFeignClient.findOptionItemIdByProductIdAndProductOptionId(productId, productOptionId);
-    }
+  private Long findOptionItemId(Long optionItemId) {
+    OptionItemDto optionItem = productFeignClient.findOptionItemById(optionItemId);
 
     if (optionItem.getOptionItemId() == null) {
       throw CustomException.from(ExceptionCode.PRODUCT_SERVICE_UNAVAILABLE);
