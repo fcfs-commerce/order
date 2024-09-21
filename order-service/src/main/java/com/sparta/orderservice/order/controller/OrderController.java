@@ -1,6 +1,8 @@
 package com.sparta.orderservice.order.controller;
 
 import com.sparta.orderservice.global.dto.ApiResponse;
+import com.sparta.orderservice.global.kafka.KafkaProducerService;
+import com.sparta.orderservice.global.util.ApiResponseUtil;
 import com.sparta.orderservice.global.util.ParseRequestUtil;
 import com.sparta.orderservice.order.dto.request.OrderCreateRequestDto;
 import com.sparta.orderservice.order.service.OrderService;
@@ -24,14 +26,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrderController {
 
   private final OrderService orderService;
-
-//  TODO : jwt 받아서 사용자 정보 추출 (@RequestHeader)
+  private final KafkaProducerService kafkaProducerService;
 
   @PostMapping
   public ResponseEntity<ApiResponse> createOrder(@RequestBody OrderCreateRequestDto requestDto,
       HttpServletRequest request) {
     Long userId = ParseRequestUtil.extractUserIdFromHeader(request);
-    ApiResponse apiResponse = orderService.createOrder(userId, requestDto);
+    requestDto.setId(userId);
+    kafkaProducerService.sendMessageToKafka(requestDto);
+    ApiResponse apiResponse = ApiResponseUtil.createSuccessResponse("Order creation in progress.", null);
     return ResponseEntity.status(HttpStatus.OK).body(apiResponse);
   }
 
