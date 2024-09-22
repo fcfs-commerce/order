@@ -1,12 +1,13 @@
 package com.sparta.orderservice.order.dto.request;
 
+import com.sparta.orderservice.global.kafka.KafkaMessage;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 import lombok.Getter;
 
 @Getter
-public class OrderCreateRequestDto {
+public class OrderCreateRequestDto extends KafkaMessage {
 
   private List<OrderItemCreateRequestDto> orderItems;
 
